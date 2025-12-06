@@ -1,7 +1,7 @@
 // ============================================================
-// ✅ SISTEMA BACKEND PCD EVENTOS — COMPLETO E ATUALIZADO
+// ✅ SISTEMA BACKEND PCD EVENTOS — VERSÃO FINAL ESTÁVEL 2025
 // ============================================================
-// Suporte a uploads, backups e listagem automática de JSONs
+// Suporte completo: Uploads + Backup JSON + Listagem de Backups
 // ============================================================
 
 import express from "express";
@@ -10,6 +10,7 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import dotenv from "dotenv";
+import streamifier from "streamifier";
 
 dotenv.config();
 const app = express();
@@ -31,7 +32,7 @@ cloudinary.config({
 });
 
 // ============================================================
-// 📂 CONFIGURAÇÃO DE ARMAZENAMENTO MULTER + CLOUDINARY
+// 📦 MULTER + CLOUDINARY (UPLOAD DE DOCUMENTOS)
 // ============================================================
 const storage = new CloudinaryStorage({
   cloudinary,
@@ -39,9 +40,9 @@ const storage = new CloudinaryStorage({
     const nomePessoa = req.body.nomePessoa || "sem-nome";
     return {
       folder: `uploads_pcd_eventos/${nomePessoa}`,
-      format: undefined, // mantém o formato original (jpg, png, pdf)
+      resource_type: "auto",
       public_id: file.originalname.split(".")[0],
-      resource_type: "auto", // aceita imagens, PDFs etc.
+      format: undefined,
     };
   },
 });
@@ -78,13 +79,14 @@ app.post("/upload", upload.any(), async (req, res) => {
 });
 
 // ============================================================
-// 💾 ROTA DE BACKUP (JSON) PARA CLOUDINARY
+// 💾 BACKUP JSON — ENVIA PARA CLOUDINARY
 // ============================================================
 app.post("/backup-json", async (req, res) => {
   try {
-    const data = JSON.stringify(req.body, null, 2);
+    const jsonData = JSON.stringify(req.body, null, 2);
     const nomeArquivo = `backup-${Date.now()}.json`;
-    const upload = await cloudinary.uploader.upload_stream(
+
+    const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "uploads_pcd_eventos/backups",
         resource_type: "raw",
@@ -103,9 +105,7 @@ app.post("/backup-json", async (req, res) => {
       }
     );
 
-    // grava o JSON diretamente no stream
-    const stream = upload;
-    stream.end(Buffer.from(data, "utf-8"));
+    streamifier.createReadStream(jsonData).pipe(uploadStream);
   } catch (err) {
     console.error("Erro ao processar backup:", err);
     res.status(500).json({ error: "Erro ao processar backup JSON." });
@@ -113,12 +113,12 @@ app.post("/backup-json", async (req, res) => {
 });
 
 // ============================================================
-// 📋 NOVA ROTA: LISTAR BACKUPS E PEGAR O MAIS RECENTE
+// 📋 LISTAR BACKUPS E PEGAR O MAIS RECENTE (CORRIGIDO)
 // ============================================================
 app.get("/listar-backups", async (req, res) => {
   try {
     const result = await cloudinary.api.resources({
-      type: "upload",
+      type: "authenticated", // ✅ CORRIGIDO — permite listar backups RAW
       resource_type: "raw",
       prefix: "uploads_pcd_eventos/backups/",
       max_results: 50,
@@ -129,7 +129,7 @@ app.get("/listar-backups", async (req, res) => {
       return res.status(404).json({ error: "Nenhum backup encontrado." });
     }
 
-    // Ordena por data de criação e pega o mais recente
+    // Ordena por data e pega o mais recente
     const backups = result.resources.sort(
       (a, b) => new Date(b.created_at) - new Date(a.created_at)
     );
@@ -148,7 +148,7 @@ app.get("/listar-backups", async (req, res) => {
 });
 
 // ============================================================
-// 🔄 ROTA DE TESTE BÁSICA
+// 🔄 TESTE RÁPIDO DO SERVIDOR
 // ============================================================
 app.get("/", (req, res) => {
   res.send("✅ Servidor PCD Eventos rodando e conectado ao Cloudinary.");
@@ -159,5 +159,5 @@ app.get("/", (req, res) => {
 // ============================================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
