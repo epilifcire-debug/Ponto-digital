@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Consulta PCD – Mobile</title>
+  <style>
+    :root {
+      --bg-light: #f5f5f5;
+      --text-light: #222;
+      --card-light: #fff;
+      --accent1: #8b0000;
+      --accent2: #b30000;
+      --accent3: #ff4747;
+
+      --bg-dark: #111;
+      --text-dark: #f1f1f1;
+      --card-dark: #1e1e1e;
+    }
+
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-light);
+      color: var(--text-light);
+      transition: background .3s, color .3s;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: var(--bg-dark);
+        color: var(--text-dark);
+      }
+      .card { background: var(--card-dark); }
+    }
+
+    header {
+      background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3));
+      color: white;
+      text-align: center;
+      padding: 16px;
+      font-weight: 600;
+      font-size: 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    main { padding: 10px; max-width: 700px; margin: auto; }
+
+    .card {
+      background: var(--card-light);
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+      transition: background .3s;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 15px;
+    }
+
+    .evento {
+      margin-bottom: 14px;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+      padding-bottom: 10px;
+    }
+
+    .evento h3 {
+      margin: 0 0 4px;
+      color: var(--accent2);
+    }
+
+    .pessoa {
+      background: rgba(0,0,0,0.03);
+      border-radius: 8px;
+      padding: 8px;
+      margin: 6px 0;
+      font-size: 14px;
+    }
+
+    .ok { color: #1dd85f; font-weight: 600; }
+    .no { color: #ff4747; font-weight: 600; }
+
+    .contador {
+      font-size: 13px;
+      margin-top: 4px;
+      color: #666;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      opacity: 0.6;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <header>Consulta PCD – Mobile</header>
+  <main>
+    <div class="card">
+      <input type="text" id="busca" placeholder="Buscar por nome ou CPF...">
+      <div id="dados">Carregando dados do Cloudinary...</div>
+    </div>
+  </main>
+  <footer>© Sistema PCD – Dados via Cloudinary</footer>
+
+  <script>
+    const cloudName = "djln3mjwd";
+    const folder = "uploads_pcd_eventos/backups";
+
+    // Busca automática do último backup JSON no Cloudinary
+    async function buscarUltimoBackup() {
+      try {
+        const res = await fetch(`https://res.cloudinary.com/${cloudName}/image/list/${folder}.json`);
+        if (!res.ok) throw new Error("Não foi possível listar backups");
+        const data = await res.json();
+        const backups = data.resources
+          .filter(r => r.public_id.includes("backup-") && r.format === "json")
+          .sort((a, b) => b.created_at.localeCompare(a.created_at));
+        if (backups.length === 0) throw new Error("Nenhum backup encontrado");
+        return `https://res.cloudinary.com/${cloudName}/raw/upload/${backups[0].public_id}.json`;
+      } catch (err) {
+        console.error(err);
+        document.getElementById("dados").textContent = "❌ Erro ao carregar backup.";
+        return null;
+      }
+    }
+
+    // Corrige compatibilidade com formato atual (doc-*)
+    function docsCompletos(p) {
+      const d = p.docs || {};
+      const novo = d["doc-requerimento"] && d["doc-foto"] && d["doc-docoficial"] &&
+                   d["doc-laudo"] && d["doc-cadunico"] && d["doc-comprovante"];
+      const antigo = d.requerimento && d.foto && d.docOficial &&
+                     d.laudo && d.cadUnico && d.comprovante;
+      return novo || antigo;
+    }
+
+    async function carregarDados() {
+      const dadosDiv = document.getElementById("dados");
+      const url = await buscarUltimoBackup();
+      if (!url) return;
+      try {
+        const resp = await fetch(url);
+        const backup = await resp.json();
+
+        const eventos = backup.eventos || [];
+        const pessoas = backup.pessoas || [];
+
+        dadosDiv.innerHTML = "";
+        renderEventos(eventos, pessoas);
+        document.getElementById("busca").addEventListener("input", e => {
+          renderEventos(eventos, pessoas, e.target.value.toLowerCase());
+        });
+      } catch (err) {
+        console.error(err);
+        dadosDiv.textContent = "❌ Falha ao carregar os dados.";
+      }
+    }
+
+    function renderEventos(eventos, pessoas, filtro="") {
+      const dadosDiv = document.getElementById("dados");
+      dadosDiv.innerHTML = "";
+
+      if (eventos.length === 0) {
+        dadosDiv.innerHTML = "<p>Nenhum evento encontrado.</p>";
+        return;
+      }
+
+      eventos.forEach(ev => {
+        const participantes = pessoas.filter(p => (p.eventos||[]).includes(ev.id));
+        const filtrados = participantes.filter(p =>
+          !filtro ||
+          p.nome.toLowerCase().includes(filtro) ||
+          (p.cpf || "").includes(filtro)
+        );
+
+        const completos = filtrados.filter(p => docsCompletos(p)).length;
+        const eventoDiv = document.createElement("div");
+        eventoDiv.className = "evento";
+        eventoDiv.innerHTML = `
+          <h3>${ev.nome || "(sem nome)"}</h3>
+          <div class="contador">✅ ${completos} com documentos completos / ${filtrados.length} total</div>
+        `;
+
+        filtrados.forEach(p => {
+          const divP = document.createElement("div");
+          divP.className = "pessoa";
+          divP.innerHTML = `
+            <strong>${p.nome}</strong><br>
+            CPF: ${p.cpf || "(sem CPF)"}<br>
+            Telefone: ${p.tel || "—"}<br>
+            <span class="${docsCompletos(p) ? "ok" : "no"}">
+              ${docsCompletos(p) ? "Documentos completos" : "Documentos pendentes"}
+            </span>
+          `;
+          eventoDiv.appendChild(divP);
+        });
+
+        dadosDiv.appendChild(eventoDiv);
+      });
+    }
+
+    carregarDados();
+  </script>
+</body>
+</html>
