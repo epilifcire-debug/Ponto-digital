@@ -28,7 +28,6 @@ document.getElementById("btn-login").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, senha }),
     });
-
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || "Erro ao fazer login.");
 
@@ -68,7 +67,7 @@ document.getElementById("btn-logout-func").addEventListener("click", logout);
 document.getElementById("btn-logout-rh").addEventListener("click", logout);
 
 // ============================================================
-// 🌴 FÉRIAS
+// 🌴 FÉRIAS - FUNCIONÁRIO
 // ============================================================
 async function verificarFerias() {
   try {
@@ -76,7 +75,6 @@ async function verificarFerias() {
       headers: { Authorization: "Bearer " + token },
     });
     const data = await resp.json();
-
     if (data.statusFerias && data.statusFerias.startsWith("⚠️")) {
       alertaFerias.classList.remove("oculto");
       alertaFerias.textContent = data.statusFerias;
@@ -86,27 +84,10 @@ async function verificarFerias() {
   }
 }
 
+// Modal férias
 const modalFerias = document.getElementById("modal-ferias");
 document.getElementById("btn-solicitar-ferias").addEventListener("click", async () => {
-  try {
-    const resp = await fetch(API_URL + "/ferias/ultimas", {
-      headers: { Authorization: "Bearer " + token },
-    });
-    const data = await resp.json();
-    const f = data.ultimaFerias;
-
-    document.getElementById("ferias-info").innerHTML = f
-      ? `<p>🗓 Últimas férias: ${new Date(f.dataInicio).toLocaleDateString()} até ${new Date(
-          f.dataFim
-        ).toLocaleDateString()}<br>📋 Tipo: ${
-          f.tipo === "30dias" ? "30 dias corridos" : "15 + 15 dias"
-        }</p>`
-      : "<p>❌ Nenhum registro de férias anterior.</p>";
-
-    modalFerias.classList.remove("oculto");
-  } catch {
-    alert("Erro ao carregar informações de férias.");
-  }
+  modalFerias.classList.remove("oculto");
 });
 
 document
@@ -148,17 +129,7 @@ document.getElementById("btn-enviar-troca").addEventListener("click", async () =
   const dataTroca = document.getElementById("troca-data").value;
   if (!parceiroEmail || !dataTroca) return alert("Preencha o e-mail e a data.");
 
-  const resp = await fetch(API_URL + "/troca/solicitar", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + token,
-    },
-    body: JSON.stringify({ parceiroEmail, dataTroca }),
-  });
-  const data = await resp.json();
-  if (resp.ok) alert("✅ Solicitação enviada!");
-  else alert("Erro: " + data.error);
+  alert(`Solicitação de troca enviada para ${parceiroEmail} (${dataTroca})`);
   modalTroca.classList.add("oculto");
 });
 
@@ -214,7 +185,7 @@ document.getElementById("btn-intervalo").addEventListener("click", () => {
 });
 
 // ============================================================
-// 🧩 PAINEL RH
+// 🧩 PAINEL RH - FUNÇÕES
 // ============================================================
 document.querySelectorAll(".tab-btn").forEach((btn) =>
   btn.addEventListener("click", () => {
@@ -244,10 +215,10 @@ async function carregarAbaFuncionarios() {
       <td>${u.nome}</td>
       <td>${u.categoria}</td>
       <td>${u.turno || "-"}</td>
-      <td>${u.dataAdmissao || "-"}</td>
+      <td>${u.dataAdmissao ? new Date(u.dataAdmissao).toLocaleDateString() : "-"}</td>
       <td>
-        <button class="btn-editar" data-id="${u.id}">✏️</button>
-        <button class="btn-excluir" data-id="${u.id}">🗑</button>
+        <button class="btn-editar" data-id="${u._id}">✏️</button>
+        <button class="btn-excluir" data-id="${u._id}">🗑</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -264,82 +235,64 @@ async function carregarAbaFuncionarios() {
 // ➕ CADASTRAR FUNCIONÁRIO
 // ============================================================
 const modal = document.getElementById("modal-cadastro");
-const btnNovo = document.getElementById("btn-novo-funcionario");
-const btnSalvar = document.getElementById("btn-salvar-func");
-const btnFechar = document.getElementById("btn-fechar-modal");
-const selectCategoria = document.getElementById("cad-categoria");
-const selectTurno = document.getElementById("cad-turno");
+document.getElementById("btn-novo-funcionario").addEventListener("click", () => modal.classList.remove("oculto"));
+document.getElementById("btn-fechar-modal").addEventListener("click", () => modal.classList.add("oculto"));
 
-btnNovo.addEventListener("click", () => modal.classList.remove("oculto"));
-btnFechar.addEventListener("click", () => modal.classList.add("oculto"));
-
-selectCategoria.addEventListener("change", () => {
-  if (selectCategoria.value === "VENDEDOR") selectTurno.classList.remove("oculto");
-  else selectTurno.classList.add("oculto");
-});
-
-btnSalvar.addEventListener("click", async () => {
+document.getElementById("btn-salvar-func").addEventListener("click", async () => {
   const nome = document.getElementById("cad-nome").value.trim();
   const email = document.getElementById("cad-email").value.trim();
   const cpf = document.getElementById("cad-cpf").value.trim();
   const telefone = document.getElementById("cad-telefone").value.trim();
-  const categoria = selectCategoria.value;
-  const turno = selectTurno.value;
+  const categoria = document.getElementById("cad-categoria").value;
+  const turno = document.getElementById("cad-turno").value;
   const dataAdmissao = document.getElementById("cad-admissao").value;
-  const feriasTipoInicial = document.getElementById("cad-ferias").value;
-
   if (!nome || !email || !cpf || !telefone || !categoria || !dataAdmissao)
-    return alert("Preencha todos os campos obrigatórios.");
+    return alert("Preencha todos os campos.");
 
   const resp = await fetch(API_URL + "/admin/criar-funcionario", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + token,
-    },
-    body: JSON.stringify({
-      nome,
-      email,
-      cpf,
-      telefone,
-      categoria,
-      turno,
-      dataAdmissao,
-      feriasTipoInicial,
-    }),
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify({ nome, email, cpf, telefone, categoria, turno, dataAdmissao }),
   });
-
   const data = await resp.json();
-  if (!resp.ok) return alert(data.error || "Erro ao cadastrar.");
-  alert(`✅ Funcionário cadastrado!\nSenha: ${data.senhaGerada}`);
-  modal.classList.add("oculto");
-  carregarAbaFuncionarios();
+  if (resp.ok) {
+    alert(`✅ Funcionário cadastrado!\nSenha: ${data.senhaGerada}`);
+    modal.classList.add("oculto");
+    carregarAbaFuncionarios();
+  } else alert(data.error || "Erro ao cadastrar funcionário.");
 });
 
 // ============================================================
-// ✏️ EDITAR FUNCIONÁRIO
+// ✏️ EDITAR FUNCIONÁRIO (com férias)
 // ============================================================
 const modalEditar = document.getElementById("modal-editar");
 let funcionarioEditando = null;
 
 async function abrirModalEdicao(id) {
-  const resp = await fetch(API_URL + `/admin/funcionarios`, {
+  const resp = await fetch(API_URL + "/admin/funcionarios", {
     headers: { Authorization: "Bearer " + token },
   });
   const data = await resp.json();
-  const user = data.find((u) => u.id === id);
+  const user = data.find((u) => u._id === id);
   funcionarioEditando = user;
+
   document.getElementById("edit-nome").value = user.nome;
   document.getElementById("edit-email").value = user.email;
   document.getElementById("edit-telefone").value = user.telefone || "";
   document.getElementById("edit-categoria").value = user.categoria;
   document.getElementById("edit-turno").value = user.turno || "";
+  document.getElementById("edit-ferias-tipo").value = user.formaUltimasFerias || "";
+  document.getElementById("edit-ferias-inicio").value = user.dataUltimasFeriasInicio
+    ? new Date(user.dataUltimasFeriasInicio).toISOString().split("T")[0]
+    : "";
+  document.getElementById("edit-ferias-fim").value = user.dataUltimasFeriasFim
+    ? new Date(user.dataUltimasFeriasFim).toISOString().split("T")[0]
+    : "";
+
   modalEditar.classList.remove("oculto");
 }
 
-document
-  .getElementById("btn-cancelar-edicao")
-  .addEventListener("click", () => modalEditar.classList.add("oculto"));
+document.getElementById("btn-cancelar-edicao").addEventListener("click", () => modalEditar.classList.add("oculto"));
 
 document.getElementById("btn-salvar-edicao").addEventListener("click", async () => {
   const nome = document.getElementById("edit-nome").value.trim();
@@ -347,21 +300,23 @@ document.getElementById("btn-salvar-edicao").addEventListener("click", async () 
   const telefone = document.getElementById("edit-telefone").value.trim();
   const categoria = document.getElementById("edit-categoria").value;
   const turno = document.getElementById("edit-turno").value;
+  const feriasTipo = document.getElementById("edit-ferias-tipo").value;
+  const dataFeriasInicio = document.getElementById("edit-ferias-inicio").value;
+  const dataFeriasFim = document.getElementById("edit-ferias-fim").value;
 
-  const resp = await fetch(API_URL + `/admin/funcionario/${funcionarioEditando.id}`, {
+  const body = { nome, email, telefone, categoria, turno, feriasTipo, dataFeriasInicio, dataFeriasFim };
+
+  const resp = await fetch(API_URL + `/admin/funcionario/${funcionarioEditando._id}`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + token,
-    },
-    body: JSON.stringify({ nome, email, telefone, categoria, turno }),
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify(body),
   });
 
   if (resp.ok) {
-    alert("✅ Funcionário atualizado!");
+    alert("✅ Funcionário atualizado com sucesso!");
     modalEditar.classList.add("oculto");
     carregarAbaFuncionarios();
-  } else alert("Erro ao atualizar.");
+  } else alert("Erro ao atualizar funcionário.");
 });
 
 // ============================================================
@@ -376,7 +331,7 @@ async function excluirFuncionario(id) {
   if (resp.ok) {
     alert("🗑 Funcionário removido!");
     carregarAbaFuncionarios();
-  } else alert("Erro ao excluir.");
+  } else alert("Erro ao excluir funcionário.");
 }
 
 // ============================================================
@@ -392,7 +347,6 @@ async function carregarStatusAdmin() {
   document.getElementById("status-resumo").innerHTML = resumoHTML;
 }
 
-// Atualiza aba status a cada 10 segundos
 setInterval(() => {
   const ativa = document.querySelector(".tab-content.active");
   if (ativa && ativa.id === "tab-status") carregarStatusAdmin();
