@@ -1,0 +1,37 @@
+# ==========================================================
+# 🧱 PONTO DIGITAL - ARQUIVOS IGNORADOS PELO GIT
+# ==========================================================
+
+# ⚙️ Dependências Node
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# ⚠️ Ambiente e Segredos
+.env
+.env.local
+.env.*.local
+
+# 🔧 Build e Cache
+dist/
+build/
+.cache/
+tmp/
+temp/
+logs/
+*.log
+
+# 💻 Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# 🧩 Editor / IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 📦 Backups / Uploads temporários
+uploads/
+backups/

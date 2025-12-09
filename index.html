@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ponto Digital</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="favicon.ico" />
+</head>
+<body>
+
+  <!-- ====================== HEADER FIXO ====================== -->
+  <header class="header">
+    <div class="logo-area">
+      <img src="images.png" alt="Point do Ingresso" class="logo-small" />
+      <img src="Logo-do-Pre-Caju-1.png" alt="Pré-Caju" class="logo-small" />
+    </div>
+  </header>
+
+  <!-- ====================== LOGIN ====================== -->
+  <section id="login-card" class="card">
+    <h2>Login do Funcionário</h2>
+    <div class="form-group">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" placeholder="ex: nome@empresa.com" />
+    </div>
+    <div class="form-group">
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" placeholder="Digite sua senha" />
+    </div>
+    <button id="btn-login" class="btn btn-grad">Entrar</button>
+    <div id="msg-login" class="msg hidden"></div>
+  </section>
+
+  <!-- ====================== APP FUNCIONÁRIO ====================== -->
+  <section id="app-card" class="card hidden">
+    <div class="top-bar">
+      <div>
+        <div class="hello" id="hello-text">Olá, Funcionário</div>
+        <div id="txt-categoria" class="pill"></div>
+        <div class="small" id="txt-dia"></div>
+        <div class="small" id="txt-horario-previsto"></div>
+      </div>
+      <div class="top-actions">
+        <button id="btn-ferias-toggle" class="btn-sm btn-outline">Férias</button>
+        <button id="btn-sair" class="btn-sm btn-outline">Sair</button>
+      </div>
+    </div>
+
+    <!-- 🔔 ALERTA DE FÉRIAS -->
+    <div id="ferias-alert" class="msg hidden"></div>
+
+    <hr class="divider" />
+
+    <!-- MEU PONTO -->
+    <h3>Meu Ponto</h3>
+    <div class="ponto-info">
+      <p id="txt-status-ponto">Status do ponto: -</p>
+      <p id="saldo-info"></p>
+    </div>
+    <div class="btn-row">
+      <button id="btn-entrada" class="btn btn-grad">Bater Entrada</button>
+      <button id="btn-saida" class="btn btn-outline">Bater Saída</button>
+      <button id="btn-intervalo" class="btn btn-outline">Intervalo (15min)</button>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- FÉRIAS -->
+    <div id="card-ferias" class="hidden">
+      <h3>Férias</h3>
+      <p id="ferias-info"></p>
+      <div class="form-group">
+        <label for="tipo-ferias">Tipo</label>
+        <select id="tipo-ferias">
+          <option value="30">30 dias corridos</option>
+          <option value="15">15 dias (2 períodos)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="data-ferias">Data de início</label>
+        <input type="date" id="data-ferias" />
+      </div>
+      <button id="btn-solicitar-ferias" class="btn btn-grad">Solicitar Férias</button>
+      <div id="msg-ferias" class="msg hidden"></div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- RH / ADMIN CARD -->
+    <div id="card-acesso-painel" class="hidden">
+      <h3>Gestão RH</h3>
+      <p>Acesse o painel completo para gerenciar funcionários, pontos e férias.</p>
+      <button id="btn-abrir-painel" class="btn btn-grad">Acessar Painel RH</button>
+    </div>
+  </section>
+
+  <!-- ====================== PAINEL RH / ADMIN ====================== -->
+  <section id="painel-rh" class="card hidden">
+    <div class="painel-header">
+      <h2>Painel RH / Admin</h2>
+      <button id="btn-voltar-app" class="btn-sm btn-outline">Voltar ao App</button>
+    </div>
+
+    <!-- Abas -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-funcionarios">Funcionários</button>
+      <button class="tab-btn" data-tab="tab-pontos">Registros de Ponto</button>
+      <button class="tab-btn" data-tab="tab-ferias">Solicitações de Férias</button>
+      <button class="tab-btn" data-tab="tab-banco">Banco de Horas</button>
+    </div>
+
+    <!-- Conteúdos -->
+    <div id="tab-funcionarios" class="tab-content active">
+      <h3>Funcionários</h3>
+      <table class="tabela">
+        <thead><tr><th>Nome</th><th>Categoria</th><th>Turno</th><th>Admissão</th></tr></thead>
+        <tbody id="tabela-funcionarios"></tbody>
+      </table>
+    </div>
+
+    <div id="tab-pontos" class="tab-content">
+      <h3>Registros de Ponto</h3>
+      <table class="tabela">
+        <thead><tr><th>Funcionário</th><th>Data</th><th>Entrada</th><th>Saída</th><th>Horas</th></tr></thead>
+        <tbody id="tabela-pontos"></tbody>
+      </table>
+    </div>
+
+    <div id="tab-ferias" class="tab-content">
+      <h3>Solicitações de Férias</h3>
+      <table class="tabela">
+        <thead><tr><th>Funcionário</th><th>Início</th><th>Fim</th><th>Dias</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="tabela-ferias"></tbody>
+      </table>
+    </div>
+
+    <div id="tab-banco" class="tab-content">
+      <h3>Banco de Horas</h3>
+      <table class="tabela">
+        <thead><tr><th>Funcionário</th><th>Categoria</th><th>Saldo (min)</th></tr></thead>
+        <tbody id="tabela-banco"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

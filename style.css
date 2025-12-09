@@ -1,0 +1,317 @@
+/* ==========================================================
+   🎨 PONTO DIGITAL - ESTILO GERAL (Mobile First)
+   ========================================================== */
+
+/* ====== RESET ====== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Poppins", sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #6a11cb 0%, #ff8c00 100%);
+  color: #222;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* ====== HEADER ====== */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(90deg, #6a11cb, #ff8c00);
+  padding: 10px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.logo-area {
+  display: flex;
+  gap: 10px;
+}
+
+.logo-small {
+  height: 40px;
+  width: auto;
+  border-radius: 6px;
+}
+
+/* ====== CARDS ====== */
+.card {
+  background: #fff;
+  width: 92%;
+  max-width: 420px;
+  margin-top: 100px;
+  padding: 20px;
+  border-radius: 14px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.5s ease;
+}
+
+.card.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ====== FORM E BOTÕES ====== */
+.form-group {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.btn-grad {
+  background: linear-gradient(90deg, #6a11cb, #ff8c00);
+  color: #fff;
+}
+
+.btn-grad:hover {
+  opacity: 0.9;
+}
+
+.btn-outline {
+  border: 2px solid #6a11cb;
+  color: #6a11cb;
+  background: transparent;
+}
+
+.btn-outline:hover {
+  background: #6a11cb;
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/* ====== TEXTOS ====== */
+h2, h3 {
+  text-align: center;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.hello {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.small {
+  font-size: 13px;
+  color: #666;
+}
+
+.pill {
+  display: inline-block;
+  background: #6a11cb;
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  margin-top: 5px;
+}
+
+.pill-rh {
+  background: #6a11cb;
+}
+
+.pill-admin {
+  background: #ff8c00;
+}
+
+.pill-vend {
+  background: #007bff;
+}
+
+/* ====== DIVISORES ====== */
+.divider {
+  border: none;
+  height: 1px;
+  background: #ddd;
+  margin: 15px 0;
+}
+
+/* ====== MENSAGENS ====== */
+.msg {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.msg.hidden {
+  display: none;
+}
+
+.msg-ok {
+  background: #e6ffea;
+  color: #007e33;
+}
+
+.msg-err {
+  background: #ffeaea;
+  color: #d93025;
+}
+
+/* ====== LAYOUT APP ====== */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.top-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ponto-info {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* ====== PAINEL RH ====== */
+.painel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  background: #f2f2f2;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.tab-btn.active {
+  background: linear-gradient(90deg, #6a11cb, #ff8c00);
+  color: #fff;
+}
+
+.tab-content {
+  display: none;
+  overflow-x: auto;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tabela th {
+  background: #6a11cb;
+  color: #fff;
+  padding: 8px;
+  text-align: left;
+}
+
+.tabela td {
+  padding: 6px;
+  border-bottom: 1px solid #ddd;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  box-shadow: 0 0 3px rgba(0,0,0,0.4);
+  cursor: help;
+}
+
+/* ====== RESPONSIVIDADE ====== */
+@media (max-width: 480px) {
+  .card {
+    margin-top: 90px;
+    width: 94%;
+    padding: 16px;
+  }
+
+  .btn-row {
+    flex-direction: column;
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .tab-btn {
+    width: 100%;
+  }
+}
