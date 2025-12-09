@@ -25,6 +25,11 @@
   <section id="login-section" class="section">
     <div class="card">
       <h2>Login</h2>
+      <p class="login-info">
+        Use seu e-mail e senha cadastrados.<br>
+        <strong>RH/Admin:</strong> pode gerenciar cadastros e férias.<br>
+        <strong>Funcionário:</strong> pode bater ponto e solicitar férias.
+      </p>
       <input type="email" id="email" placeholder="E-mail" />
       <input type="password" id="senha" placeholder="Senha" />
       <button id="btn-login">Entrar</button>
@@ -63,11 +68,11 @@
   </section>
 
   <!-- ========================================================== -->
-  <!-- 🧑‍💼 PAINEL RH -->
+  <!-- 🧑‍💼 PAINEL RH / ADMIN -->
   <!-- ========================================================== -->
   <section id="painel-rh" class="section oculto">
     <div class="card">
-      <h2>Painel RH / Administrativo</h2>
+      <h2>Painel RH / Admin</h2>
       <button id="btn-logout-rh" class="btn-logout">🚪 Sair</button>
 
       <div class="tab-nav">
@@ -76,7 +81,11 @@
       </div>
 
       <div id="tab-funcionarios" class="tab-content active">
-        <button id="btn-novo-funcionario" class="btn-add">➕ Novo Funcionário</button>
+        <div class="painel-actions">
+          <button id="btn-novo-funcionario" class="btn-add">➕ Novo Funcionário</button>
+          <button id="btn-novo-admin" class="btn-add oculto">👑 Novo Admin</button>
+        </div>
+
         <table id="tabela-funcionarios">
           <thead>
             <tr>
