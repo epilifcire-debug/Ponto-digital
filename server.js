@@ -1,223 +1,267 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ponto Digital | Point do Ingresso + Pré-Caju</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="favicon.ico" />
-</head>
-<body>
-  <!-- ========================================================== -->
-  <!-- 🌈 CABEÇALHO -->
-  <!-- ========================================================== -->
-  <header id="header">
-    <div class="header-content">
-      <img src="images.png" alt="Logo Point do Ingresso" class="logo" />
-      <img src="Logo-do-Pre-Caju-1.png" alt="Logo Pré-Caju" class="logo" />
-      <h1>Ponto Digital</h1>
-    </div>
-  </header>
+// ============================================================
+// 🌐 PONTO DIGITAL – BACKEND COMPLETO (2025)
+// ============================================================
 
-  <!-- ========================================================== -->
-  <!-- 🔐 LOGIN -->
-  <!-- ========================================================== -->
-  <section id="login-section" class="section">
-    <div class="card">
-      <h2>Login</h2>
-      <input type="email" id="email" placeholder="E-mail" />
-      <input type="password" id="senha" placeholder="Senha" />
-      <button id="btn-login">Entrar</button>
-      <p id="msg-erro" class="msg-erro"></p>
-    </div>
-  </section>
+import express from "express";
+import cors from "cors";
+import multer from "multer";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import crypto from "crypto";
+import dotenv from "dotenv";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
-  <!-- ========================================================== -->
-  <!-- 👷 FUNCIONÁRIO -->
-  <!-- ========================================================== -->
-  <section id="ponto-section" class="section oculto">
-    <div class="card">
-      <h2 id="boas-vindas">Olá, Funcionário</h2>
-      <button id="btn-logout-func" class="btn-logout">🚪 Sair</button>
+dotenv.config();
+const app = express();
 
-      <div id="alerta-ferias" class="msg-alert oculto"></div>
+app.use(express.json());
+app.use(cors());
+app.use(express.static("public"));
 
-      <div class="btn-group">
-        <button id="btn-entrada">Bater Entrada</button>
-        <button id="btn-saida">Bater Saída</button>
-        <button id="btn-intervalo">Intervalo</button>
-      </div>
+// ============================================================
+// ☁️ CLOUDINARY
+// ============================================================
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-      <div class="func-opcoes">
-        <button id="btn-solicitar-ferias">Solicitar Férias</button>
-        <button id="btn-trocar-horario">Trocar Horário</button>
-      </div>
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "ponto-digital",
+    allowed_formats: ["jpg", "jpeg", "png"],
+  },
+});
+const upload = multer({ storage });
 
-      <div id="meu-ponto" class="card-info">
-        <h3>📋 Meu Ponto</h3>
-        <p><strong>Último Registro:</strong> <span id="ultimo-registro">–</span></p>
-        <p><strong>Horas Trabalhadas:</strong> <span id="horas-trabalhadas">–</span></p>
-        <p><strong>Banco de Horas:</strong> <span id="banco-horas">–</span></p>
-      </div>
-    </div>
-  </section>
+// ============================================================
+// 🔐 CRIPTOGRAFIA AES-256-CBC
+// ============================================================
+const ENCRYPT_KEY = process.env.ENCRYPT_KEY;
+function encrypt(text) {
+  if (!text) return "";
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(
+    "aes-256-cbc",
+    Buffer.from(ENCRYPT_KEY, "hex"),
+    iv
+  );
+  const encrypted = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
+  return iv.toString("hex") + ":" + encrypted.toString("hex");
+}
+function decrypt(text) {
+  try {
+    if (!text || !text.includes(":")) return text;
+    const [ivHex, contentHex] = text.split(":");
+    const iv = Buffer.from(ivHex, "hex");
+    const decipher = crypto.createDecipheriv(
+      "aes-256-cbc",
+      Buffer.from(ENCRYPT_KEY, "hex"),
+      iv
+    );
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(contentHex, "hex")),
+      decipher.final(),
+    ]);
+    return decrypted.toString("utf8");
+  } catch {
+    return text;
+  }
+}
 
-  <!-- ========================================================== -->
-  <!-- 🧑‍💼 PAINEL RH -->
-  <!-- ========================================================== -->
-  <section id="painel-rh" class="section oculto">
-    <div class="card">
-      <h2>Painel RH / Administrativo</h2>
-      <button id="btn-logout-rh" class="btn-logout">🚪 Sair</button>
+// ============================================================
+// 🧩 MONGODB
+// ============================================================
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log("✅ Conectado ao MongoDB Atlas"))
+  .catch((err) => console.error("❌ Erro MongoDB:", err));
 
-      <div class="tab-nav">
-        <button class="tab-btn active" data-tab="tab-funcionarios">👥 Funcionários</button>
-        <button class="tab-btn" data-tab="tab-status">📊 Status</button>
-      </div>
+const userSchema = new mongoose.Schema({
+  nome: String,
+  email: String,
+  senhaHash: String,
+  cpfCripto: String,
+  telefoneCripto: String,
+  categoria: String,
+  turno: String,
+  dataAdmissao: Date,
+  jaTirouFerias: Boolean,
+  formaUltimasFerias: String,
+  dataUltimasFeriasInicio: Date,
+  dataUltimasFeriasFim: Date,
+});
 
-      <div id="tab-funcionarios" class="tab-content active">
-        <button id="btn-novo-funcionario" class="btn-add">➕ Novo Funcionário</button>
-        <table id="tabela-funcionarios">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Categoria</th>
-              <th>Turno</th>
-              <th>Admissão</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+const pontoSchema = new mongoose.Schema({
+  userId: String,
+  tipo: String,
+  dataHora: Date,
+  fotoUrl: String,
+});
 
-      <div id="tab-status" class="tab-content">
-        <div id="status-resumo" class="status-cards"></div>
-        <div class="status-section">
-          <h4>📜 Logs Recentes</h4>
-          <ul id="status-logs"></ul>
-        </div>
-        <div class="status-section">
-          <h4>📸 Últimas Fotos</h4>
-          <div id="status-fotos" class="foto-galeria"></div>
-        </div>
-        <button id="btn-exportar-csv" class="btn-export">⬇️ Exportar Relatório CSV</button>
-      </div>
-    </div>
-  </section>
+const feriasSchema = new mongoose.Schema({
+  userId: String,
+  tipo: String,
+  dataInicio: Date,
+  dataFim: Date,
+  dias: Number,
+  status: { type: String, default: "pendente" },
+});
 
-  <!-- ========================================================== -->
-  <!-- 🧾 MODAL CADASTRO FUNCIONÁRIO -->
-  <!-- ========================================================== -->
-  <div id="modal-cadastro" class="modal oculto">
-    <div class="modal-content">
-      <h3>Novo Funcionário</h3>
-      <input id="cad-nome" placeholder="Nome completo" />
-      <input id="cad-email" placeholder="E-mail" />
-      <input id="cad-cpf" placeholder="CPF" />
-      <input id="cad-telefone" placeholder="Telefone" />
-      <label>Categoria:</label>
-      <select id="cad-categoria">
-        <option value="RH">RH</option>
-        <option value="VENDEDOR">VENDEDOR</option>
-      </select>
-      <label id="label-turno">Turno:</label>
-      <select id="cad-turno" class="oculto">
-        <option value="MANHA">Manhã</option>
-        <option value="TARDE">Tarde</option>
-      </select>
+const User = mongoose.model("User", userSchema);
+const Ponto = mongoose.model("Ponto", pontoSchema);
+const Ferias = mongoose.model("Ferias", feriasSchema);
 
-      <label>Data de Admissão:</label>
-      <input type="date" id="cad-admissao" />
+// ============================================================
+// 🌱 SEED INICIAL
+// ============================================================
+async function seed() {
+  if (await User.countDocuments()) return;
+  console.log("🌱 Criando usuários padrão...");
+  const base = [
+    { nome: "Ana RH", email: "ana.rh@empresa.com", cpf: "12345678900", telefone: "11999999999", categoria: "RH", dataAdmissao: new Date("2023-01-02") },
+    { nome: "Bruno Vendedor", email: "bruno@empresa.com", cpf: "98765432100", telefone: "11988888888", categoria: "VENDEDOR", turno: "MANHA", dataAdmissao: new Date("2023-02-10") },
+  ];
+  for (const u of base) {
+    const senha = u.cpf.substring(0, 5);
+    await new User({
+      ...u,
+      senhaHash: bcrypt.hashSync(senha, 10),
+      cpfCripto: encrypt(u.cpf),
+      telefoneCripto: encrypt(u.telefone),
+    }).save();
+    console.log(`Usuário: ${u.email} | senha: ${senha}`);
+  }
+}
+mongoose.connection.once("open", seed);
 
-      <div class="modal-actions">
-        <button id="btn-salvar-func">Salvar</button>
-        <button id="btn-fechar-modal" class="cancelar">Cancelar</button>
-      </div>
-    </div>
-  </div>
+// ============================================================
+// 🔑 LOGIN
+// ============================================================
+function dentroDoHorarioPermitido(user) {
+  const agora = new Date();
+  const h = agora.getHours() + agora.getMinutes() / 60;
+  const hoje = agora.getDay();
+  const tolerancia = 0.25;
+  const feriados = ["12-24", "12-31"];
+  const dia = `${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
+  const especial = feriados.includes(dia);
 
-  <!-- ========================================================== -->
-  <!-- ✏️ MODAL EDITAR FUNCIONÁRIO -->
-  <!-- ========================================================== -->
-  <div id="modal-editar" class="modal oculto">
-    <div class="modal-content">
-      <h3>Editar Funcionário</h3>
-      <input id="edit-nome" placeholder="Nome completo" />
-      <input id="edit-email" placeholder="E-mail" />
-      <input id="edit-telefone" placeholder="Telefone" />
-      <label>Categoria:</label>
-      <select id="edit-categoria">
-        <option value="RH">RH</option>
-        <option value="VENDEDOR">VENDEDOR</option>
-      </select>
-      <label>Turno:</label>
-      <select id="edit-turno">
-        <option value="MANHA">Manhã</option>
-        <option value="TARDE">Tarde</option>
-      </select>
+  if (user.categoria === "RH") return hoje >= 1 && hoje <= 5 && h >= 9 - tolerancia && h <= 18;
+  if (user.categoria === "VENDEDOR") {
+    if (especial) return h >= 9 - tolerancia && h <= 18;
+    if (hoje === 0) return h >= 14 - tolerancia && h <= 20;
+    if (user.turno === "MANHA") return h >= 10 - tolerancia && h <= 16;
+    if (user.turno === "TARDE") return h >= 16 - tolerancia && h <= 22;
+  }
+  return false;
+}
 
-      <!-- 🏖️ CAMPOS DE FÉRIAS MANUAIS -->
-      <hr />
-      <h4>📆 Férias Já Tiradas</h4>
-      <label>Tipo de Férias:</label>
-      <select id="edit-ferias-tipo">
-        <option value="">Nenhuma</option>
-        <option value="30dias">30 dias corridos</option>
-        <option value="15em15">15 + 15 dias</option>
-      </select>
+app.post("/login", async (req, res) => {
+  const { email, senha } = req.body;
+  const u = await User.findOne({ email });
+  if (!u) return res.status(404).json({ error: "Usuário não encontrado" });
+  if (!bcrypt.compareSync(senha, u.senhaHash)) return res.status(401).json({ error: "Senha incorreta" });
+  if (!dentroDoHorarioPermitido(u)) return res.status(403).json({ error: "Fora do horário permitido" });
+  const token = jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: "8h" });
+  res.json({ token, usuario: u });
+});
 
-      <label>Data de Início:</label>
-      <input type="date" id="edit-ferias-inicio" />
+function auth(req, res, next) {
+  const h = req.headers.authorization;
+  if (!h) return res.status(401).json({ error: "Token ausente" });
+  try {
+    const { id } = jwt.verify(h.split(" ")[1], process.env.JWT_SECRET);
+    req.userId = id;
+    next();
+  } catch {
+    res.status(401).json({ error: "Token inválido" });
+  }
+}
 
-      <label>Data de Término:</label>
-      <input type="date" id="edit-ferias-fim" />
+// ============================================================
+// 📸 REGISTRAR PONTO
+// ============================================================
+app.post("/ponto/registrar", auth, upload.single("foto"), async (req, res) => {
+  await new Ponto({ userId: req.userId, tipo: req.body.tipo, dataHora: new Date(), fotoUrl: req.file?.path || "" }).save();
+  res.json({ ok: true });
+});
 
-      <div class="modal-actions">
-        <button id="btn-salvar-edicao">Salvar</button>
-        <button id="btn-cancelar-edicao" class="cancelar">Cancelar</button>
-      </div>
-    </div>
-  </div>
+// ============================================================
+// 🌴 FÉRIAS
+// ============================================================
+app.get("/ferias/info", auth, async (req, res) => {
+  const u = await User.findById(req.userId);
+  const adm = new Date(u.dataAdmissao);
+  const hoje = new Date();
+  const dias = Math.floor((hoje - adm) / 86400000);
+  const status = dias > 365 ? `⚠️ Férias vencidas há ${dias - 365} dias` : dias > 335 ? `⚠️ Férias vencem em ${365 - dias} dias` : "OK";
+  res.json({ statusFerias: status, dataAdmissao: u.dataAdmissao });
+});
 
-  <!-- ========================================================== -->
-  <!-- 🌴 MODAL SOLICITAR FÉRIAS -->
-  <!-- ========================================================== -->
-  <div id="modal-ferias" class="modal oculto">
-    <div class="modal-content">
-      <h3>Solicitar Férias</h3>
-      <div id="ferias-info"></div>
-      <select id="tipo-ferias">
-        <option value="">Selecione o tipo</option>
-        <option value="30dias">30 dias corridos</option>
-        <option value="15em15">15 + 15 dias</option>
-      </select>
-      <div class="modal-actions">
-        <button id="btn-enviar-ferias">Enviar Solicitação</button>
-        <button id="btn-cancelar-ferias" class="cancelar">Cancelar</button>
-      </div>
-    </div>
-  </div>
+app.post("/ferias/solicitar", auth, async (req, res) => {
+  const tipo = req.body.tipo;
+  const hoje = new Date();
+  const dias = tipo === "15em15" ? 15 : 30;
+  await new Ferias({ userId: req.userId, tipo, dataInicio: hoje, dataFim: new Date(hoje.getTime() + dias * 86400000), dias }).save();
+  res.json({ ok: true });
+});
 
-  <!-- ========================================================== -->
-  <!-- 🔁 MODAL TROCA DE HORÁRIO -->
-  <!-- ========================================================== -->
-  <div id="modal-troca" class="modal oculto">
-    <div class="modal-content">
-      <h3>Solicitar Troca de Turno</h3>
-      <input id="troca-email" placeholder="E-mail do outro vendedor" />
-      <label>Data da Troca:</label>
-      <input id="troca-data" type="date" />
-      <div class="modal-actions">
-        <button id="btn-enviar-troca">Enviar Solicitação</button>
-        <button id="btn-cancelar-troca" class="cancelar">Cancelar</button>
-      </div>
-    </div>
-  </div>
+// ============================================================
+// 🧑‍💼 ADMIN CRUD
+// ============================================================
+app.get("/admin/funcionarios", auth, async (_, res) => {
+  res.json(await User.find());
+});
 
-  <!-- ========================================================== -->
-  <!-- 🔗 SCRIPTS -->
-  <!-- ========================================================== -->
-  <script src="app.js"></script>
-</body>
-</html>
+app.post("/admin/criar-funcionario", auth, async (req, res) => {
+  const { nome, email, cpf, telefone, categoria, turno, dataAdmissao } = req.body;
+  const senha = cpf.substring(0, 5);
+  await new User({
+    nome,
+    email,
+    senhaHash: bcrypt.hashSync(senha, 10),
+    cpfCripto: encrypt(cpf),
+    telefoneCripto: encrypt(telefone),
+    categoria,
+    turno,
+    dataAdmissao: new Date(dataAdmissao),
+  }).save();
+  res.json({ ok: true, senhaGerada: senha });
+});
+
+app.put("/admin/funcionario/:id", auth, async (req, res) => {
+  const { nome, email, telefone, categoria, turno, dataFeriasInicio, dataFeriasFim, feriasTipo } = req.body;
+  const update = { nome, email, telefone, categoria, turno };
+  if (dataFeriasInicio && dataFeriasFim && feriasTipo) {
+    update.jaTirouFerias = true;
+    update.formaUltimasFerias = feriasTipo;
+    update.dataUltimasFeriasInicio = new Date(dataFeriasInicio);
+    update.dataUltimasFeriasFim = new Date(dataFeriasFim);
+    await Ferias.create({
+      userId: req.params.id,
+      tipo: feriasTipo,
+      dataInicio: new Date(dataFeriasInicio),
+      dataFim: new Date(dataFeriasFim),
+      dias: feriasTipo === "15em15" ? 30 : 30,
+      status: "aprovada",
+    });
+  }
+  await User.findByIdAndUpdate(req.params.id, update);
+  res.json({ ok: true });
+});
+
+app.delete("/admin/funcionario/:id", auth, async (req, res) => {
+  await User.findByIdAndDelete(req.params.id);
+  res.json({ ok: true });
+});
+
+// ============================================================
+// 🚀 START
+// ============================================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
