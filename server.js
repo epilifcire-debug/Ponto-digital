@@ -1,5 +1,5 @@
 // ============================================================
-// 🌐 PONTO DIGITAL – BACKEND COMPLETO (2025)
+// 🌐 PONTO DIGITAL - SERVER.JS COMPLETO (2025)
 // ============================================================
 
 import express from "express";
@@ -39,7 +39,7 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage });
 
 // ============================================================
-// 🔐 CRIPTOGRAFIA AES-256-CBC
+// 🔐 CRIPTOGRAFIA AES-256
 // ============================================================
 const ENCRYPT_KEY = process.env.ENCRYPT_KEY;
 function encrypt(text) {
@@ -53,6 +53,7 @@ function encrypt(text) {
   const encrypted = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
   return iv.toString("hex") + ":" + encrypted.toString("hex");
 }
+
 function decrypt(text) {
   try {
     if (!text || !text.includes(":")) return text;
@@ -117,26 +118,79 @@ const Ponto = mongoose.model("Ponto", pontoSchema);
 const Ferias = mongoose.model("Ferias", feriasSchema);
 
 // ============================================================
-// 🌱 SEED INICIAL
+// 🌱 SEED INICIAL + CORREÇÃO DE ÍNDICES DUPLICADOS
 // ============================================================
 async function seed() {
-  if (await User.countDocuments()) return;
-  console.log("🌱 Criando usuários padrão...");
-  const base = [
-    { nome: "Ana RH", email: "ana.rh@empresa.com", cpf: "12345678900", telefone: "11999999999", categoria: "RH", dataAdmissao: new Date("2023-01-02") },
-    { nome: "Bruno Vendedor", email: "bruno@empresa.com", cpf: "98765432100", telefone: "11988888888", categoria: "VENDEDOR", turno: "MANHA", dataAdmissao: new Date("2023-02-10") },
-  ];
-  for (const u of base) {
-    const senha = u.cpf.substring(0, 5);
-    await new User({
-      ...u,
-      senhaHash: bcrypt.hashSync(senha, 10),
-      cpfCripto: encrypt(u.cpf),
-      telefoneCripto: encrypt(u.telefone),
-    }).save();
-    console.log(`Usuário: ${u.email} | senha: ${senha}`);
+  try {
+    // 🧹 Remove índice duplicado se existir
+    const indexes = await mongoose.connection.db.collection("users").indexes();
+    const dupIndex = indexes.find((idx) => idx.name === "userId_1");
+    if (dupIndex) {
+      await mongoose.connection.db.collection("users").dropIndex("userId_1");
+      console.log("🧩 Índice duplicado 'userId_1' removido com sucesso!");
+    }
+
+    // Evita duplicar seeds
+    if (await User.countDocuments()) return;
+
+    console.log("🌱 Criando usuários padrão...");
+
+    const base = [
+      {
+        nome: "Ana RH",
+        email: "ana.rh@empresa.com",
+        cpf: "12345678900",
+        telefone: "11999999999",
+        categoria: "RH",
+        dataAdmissao: new Date("2023-01-02"),
+      },
+      {
+        nome: "Bruno Vendedor",
+        email: "bruno@empresa.com",
+        cpf: "98765432100",
+        telefone: "11988888888",
+        categoria: "VENDEDOR",
+        turno: "MANHA",
+        dataAdmissao: new Date("2023-02-10"),
+      },
+    ];
+
+    for (const u of base) {
+      const senha = u.cpf.substring(0, 5);
+      await new User({
+        ...u,
+        senhaHash: bcrypt.hashSync(senha, 10),
+        cpfCripto: encrypt(u.cpf),
+        telefoneCripto: encrypt(u.telefone),
+      }).save();
+      console.log(`Usuário: ${u.email} | senha: ${senha}`);
+    }
+
+    // 👑 Usuário ADMIN Master
+    const adminEmail = "admin@empresa.com";
+    const adminSenha = "admin123";
+    const adminExiste = await User.findOne({ email: adminEmail });
+
+    if (!adminExiste) {
+      await new User({
+        nome: "Administrador Master",
+        email: adminEmail,
+        senhaHash: bcrypt.hashSync(adminSenha, 10),
+        categoria: "ADMIN",
+        telefoneCripto: encrypt("11900000000"),
+        cpfCripto: encrypt("00000000000"),
+        dataAdmissao: new Date(),
+      }).save();
+
+      console.log(`👑 Admin criado: ${adminEmail} | senha: ${adminSenha}`);
+    } else {
+      console.log("👑 Admin já existente no banco.");
+    }
+  } catch (err) {
+    console.error("❌ Erro no seed:", err);
   }
 }
+
 mongoose.connection.once("open", seed);
 
 // ============================================================
@@ -146,12 +200,16 @@ function dentroDoHorarioPermitido(user) {
   const agora = new Date();
   const h = agora.getHours() + agora.getMinutes() / 60;
   const hoje = agora.getDay();
-  const tolerancia = 0.25;
+  const tolerancia = 0.25; // 15 minutos
   const feriados = ["12-24", "12-31"];
-  const dia = `${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
+  const dia = `${String(agora.getMonth() + 1).padStart(2, "0")}-${String(
+    agora.getDate()
+  ).padStart(2, "0")}`;
   const especial = feriados.includes(dia);
 
-  if (user.categoria === "RH") return hoje >= 1 && hoje <= 5 && h >= 9 - tolerancia && h <= 18;
+  if (user.categoria === "RH" || user.categoria === "ADMIN")
+    return hoje >= 1 && hoje <= 5 && h >= 9 - tolerancia && h <= 18;
+
   if (user.categoria === "VENDEDOR") {
     if (especial) return h >= 9 - tolerancia && h <= 18;
     if (hoje === 0) return h >= 14 - tolerancia && h <= 20;
@@ -165,9 +223,14 @@ app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
   const u = await User.findOne({ email });
   if (!u) return res.status(404).json({ error: "Usuário não encontrado" });
-  if (!bcrypt.compareSync(senha, u.senhaHash)) return res.status(401).json({ error: "Senha incorreta" });
-  if (!dentroDoHorarioPermitido(u)) return res.status(403).json({ error: "Fora do horário permitido" });
-  const token = jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: "8h" });
+  if (!bcrypt.compareSync(senha, u.senhaHash))
+    return res.status(401).json({ error: "Senha incorreta" });
+  if (!dentroDoHorarioPermitido(u))
+    return res.status(403).json({ error: "Fora do horário permitido" });
+
+  const token = jwt.sign({ id: u._id, categoria: u.categoria }, process.env.JWT_SECRET, {
+    expiresIn: "8h",
+  });
   res.json({ token, usuario: u });
 });
 
@@ -175,8 +238,9 @@ function auth(req, res, next) {
   const h = req.headers.authorization;
   if (!h) return res.status(401).json({ error: "Token ausente" });
   try {
-    const { id } = jwt.verify(h.split(" ")[1], process.env.JWT_SECRET);
+    const { id, categoria } = jwt.verify(h.split(" ")[1], process.env.JWT_SECRET);
     req.userId = id;
+    req.categoria = categoria;
     next();
   } catch {
     res.status(401).json({ error: "Token inválido" });
@@ -187,7 +251,12 @@ function auth(req, res, next) {
 // 📸 REGISTRAR PONTO
 // ============================================================
 app.post("/ponto/registrar", auth, upload.single("foto"), async (req, res) => {
-  await new Ponto({ userId: req.userId, tipo: req.body.tipo, dataHora: new Date(), fotoUrl: req.file?.path || "" }).save();
+  await new Ponto({
+    userId: req.userId,
+    tipo: req.body.tipo,
+    dataHora: new Date(),
+    fotoUrl: req.file?.path || "",
+  }).save();
   res.json({ ok: true });
 });
 
@@ -199,7 +268,12 @@ app.get("/ferias/info", auth, async (req, res) => {
   const adm = new Date(u.dataAdmissao);
   const hoje = new Date();
   const dias = Math.floor((hoje - adm) / 86400000);
-  const status = dias > 365 ? `⚠️ Férias vencidas há ${dias - 365} dias` : dias > 335 ? `⚠️ Férias vencem em ${365 - dias} dias` : "OK";
+  const status =
+    dias > 365
+      ? `⚠️ Férias vencidas há ${dias - 365} dias`
+      : dias > 335
+      ? `⚠️ Férias vencem em ${365 - dias} dias`
+      : "OK";
   res.json({ statusFerias: status, dataAdmissao: u.dataAdmissao });
 });
 
@@ -207,12 +281,18 @@ app.post("/ferias/solicitar", auth, async (req, res) => {
   const tipo = req.body.tipo;
   const hoje = new Date();
   const dias = tipo === "15em15" ? 15 : 30;
-  await new Ferias({ userId: req.userId, tipo, dataInicio: hoje, dataFim: new Date(hoje.getTime() + dias * 86400000), dias }).save();
+  await new Ferias({
+    userId: req.userId,
+    tipo,
+    dataInicio: hoje,
+    dataFim: new Date(hoje.getTime() + dias * 86400000),
+    dias,
+  }).save();
   res.json({ ok: true });
 });
 
 // ============================================================
-// 🧑‍💼 ADMIN CRUD
+// 🧑‍💼 ADMIN/RH CRUD
 // ============================================================
 app.get("/admin/funcionarios", auth, async (_, res) => {
   res.json(await User.find());
@@ -235,7 +315,16 @@ app.post("/admin/criar-funcionario", auth, async (req, res) => {
 });
 
 app.put("/admin/funcionario/:id", auth, async (req, res) => {
-  const { nome, email, telefone, categoria, turno, dataFeriasInicio, dataFeriasFim, feriasTipo } = req.body;
+  const {
+    nome,
+    email,
+    telefone,
+    categoria,
+    turno,
+    dataFeriasInicio,
+    dataFeriasFim,
+    feriasTipo,
+  } = req.body;
   const update = { nome, email, telefone, categoria, turno };
   if (dataFeriasInicio && dataFeriasFim && feriasTipo) {
     update.jaTirouFerias = true;
@@ -247,7 +336,7 @@ app.put("/admin/funcionario/:id", auth, async (req, res) => {
       tipo: feriasTipo,
       dataInicio: new Date(dataFeriasInicio),
       dataFim: new Date(dataFeriasFim),
-      dias: feriasTipo === "15em15" ? 30 : 30,
+      dias: 30,
       status: "aprovada",
     });
   }
@@ -261,7 +350,7 @@ app.delete("/admin/funcionario/:id", auth, async (req, res) => {
 });
 
 // ============================================================
-// 🚀 START
+// 🚀 START SERVER
 // ============================================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
