@@ -1,5 +1,5 @@
 /* ============================================================
-   🎨 PONTO DIGITAL - STYLE.CSS COMPLETO (v4 Atualizado)
+   🎨 PONTO DIGITAL - STYLE.CSS COMPLETO
    ============================================================ */
 
 body {
@@ -100,6 +100,15 @@ button:hover {
   display: none !important;
 }
 
+.label-inline {
+  display: block;
+  text-align: left;
+  font-size: 12px;
+  margin-top: 4px;
+  margin-bottom: -4px;
+  color: #555;
+}
+
 /* ======= TABELAS ======= */
 table {
   width: 100%;
@@ -174,6 +183,10 @@ th {
   font-size: 15px;
 }
 
+.btn-ferias {
+  margin-top: 10px;
+}
+
 /* ======= STATUS ADMIN ======= */
 #status-resumo {
   display: grid;
@@ -242,7 +255,7 @@ th {
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   transition: all 0.2s ease;
 }
 
@@ -251,7 +264,7 @@ th {
   opacity: 0.9;
 }
 
-/* ===== MODAL DE CADASTRO E EDIÇÃO ===== */
+/* ===== MODAIS (CADASTRO, EDIÇÃO, FÉRIAS) ===== */
 .btn-novo {
   background: linear-gradient(90deg, #a83279, #d38312);
   color: white;
@@ -311,7 +324,7 @@ th {
   background: #bbb;
 }
 
-/* ===== BOTÕES DE AÇÃO ===== */
+/* ===== BOTÕES DE AÇÃO TABELA ===== */
 .btn-editar,
 .btn-excluir {
   background: none;
