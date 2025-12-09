@@ -130,13 +130,6 @@
       <label>Data de Admissão:</label>
       <input type="date" id="cad-admissao" />
 
-      <label>Já Tirou Férias:</label>
-      <select id="cad-ferias">
-        <option value="nenhuma">Ainda não</option>
-        <option value="30dias">30 dias</option>
-        <option value="15em15">15 + 15 dias</option>
-      </select>
-
       <div class="modal-actions">
         <button id="btn-salvar-func">Salvar</button>
         <button id="btn-fechar-modal" class="cancelar">Cancelar</button>
@@ -163,6 +156,23 @@
         <option value="MANHA">Manhã</option>
         <option value="TARDE">Tarde</option>
       </select>
+
+      <!-- 🏖️ CAMPOS DE FÉRIAS MANUAIS -->
+      <hr />
+      <h4>📆 Férias Já Tiradas</h4>
+      <label>Tipo de Férias:</label>
+      <select id="edit-ferias-tipo">
+        <option value="">Nenhuma</option>
+        <option value="30dias">30 dias corridos</option>
+        <option value="15em15">15 + 15 dias</option>
+      </select>
+
+      <label>Data de Início:</label>
+      <input type="date" id="edit-ferias-inicio" />
+
+      <label>Data de Término:</label>
+      <input type="date" id="edit-ferias-fim" />
+
       <div class="modal-actions">
         <button id="btn-salvar-edicao">Salvar</button>
         <button id="btn-cancelar-edicao" class="cancelar">Cancelar</button>
