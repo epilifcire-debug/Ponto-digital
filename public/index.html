@@ -38,6 +38,11 @@
         <button id="btn-saida">Bater Saída</button>
         <button id="btn-intervalo">Intervalo 15 min</button>
       </div>
+
+      <button id="btn-solicitar-ferias" class="btn-ferias">
+        Solicitar Férias
+      </button>
+
       <div id="info-ponto">
         <p><strong>Último Registro:</strong> <span id="ultimo-registro">-</span></p>
         <p><strong>Banco de Horas:</strong> <span id="banco-horas">0h</span></p>
@@ -45,6 +50,23 @@
       <div id="alerta-ferias" class="msg-ok oculto"></div>
     </div>
   </section>
+
+  <!-- ===== MODAL FÉRIAS FUNCIONÁRIO ===== -->
+  <div id="modal-ferias" class="modal oculto">
+    <div class="modal-content">
+      <h3>Solicitar Férias</h3>
+      <div id="ferias-info"></div>
+      <select id="tipo-ferias">
+        <option value="">Selecione o tipo</option>
+        <option value="30dias">30 dias corridos</option>
+        <option value="15em15">15 + 15 dias</option>
+      </select>
+      <div class="modal-actions">
+        <button id="btn-enviar-ferias">Enviar Solicitação</button>
+        <button id="btn-cancelar-ferias" class="cancelar">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== PAINEL RH ===== -->
   <section id="painel-rh" class="tela oculto">
@@ -87,16 +109,28 @@
           <input id="cad-email" placeholder="E-mail" />
           <input id="cad-cpf" placeholder="CPF (somente números)" />
           <input id="cad-telefone" placeholder="Telefone" />
+
+          <label class="label-inline">Data de Admissão</label>
+          <input id="cad-data-admissao" type="date" />
+
           <select id="cad-categoria">
             <option value="">Categoria</option>
             <option value="RH">RH</option>
             <option value="VENDEDOR">Vendedor</option>
           </select>
+
           <select id="cad-turno" class="oculto">
             <option value="">Turno</option>
             <option value="MANHA">Manhã (10:00–16:00)</option>
             <option value="TARDE">Tarde (16:00–22:00)</option>
           </select>
+
+          <select id="cad-ferias-tipo">
+            <option value="nenhuma">Já tirou férias?</option>
+            <option value="30dias">Sim - 30 dias corridos</option>
+            <option value="15em15">Sim - 15 em 15 dias</option>
+          </select>
+
           <div class="modal-actions">
             <button id="btn-salvar-func">Salvar</button>
             <button id="btn-fechar-modal" class="cancelar">Cancelar</button>
@@ -111,6 +145,8 @@
           <input id="edit-nome" placeholder="Nome completo" />
           <input id="edit-email" placeholder="E-mail" />
           <input id="edit-telefone" placeholder="Telefone" />
+          <label class="label-inline">Data de Admissão</label>
+          <input id="edit-data-admissao" type="date" />
           <select id="edit-categoria">
             <option value="RH">RH</option>
             <option value="VENDEDOR">Vendedor</option>
@@ -127,7 +163,7 @@
         </div>
       </div>
 
-      <!-- ===== OUTRAS ABAS ===== -->
+      <!-- ===== OUTRAS ABAS (PLACEHOLDER) ===== -->
       <div id="tab-pontos" class="tab-content">
         <h3>Registros de Ponto</h3>
         <p>Filtro e histórico serão exibidos aqui.</p>
