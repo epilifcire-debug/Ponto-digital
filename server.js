@@ -1,35 +1,27 @@
-// ============================================================
-// 🌐 PONTO DIGITAL - SERVER.JS FINAL (2025)
-// ============================================================
-
 import express from "express";
-import cors from "cors";
-import multer from "multer";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import crypto from "crypto";
+import cors from "cors";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-import path from "path";
-import { fileURLToPath } from "url";
+import crypto from "crypto";
 
 dotenv.config();
 const app = express();
-
-// ============================================================
-// 📂 SERVE FRONTEND
-// ============================================================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-app.use(express.static(path.join(__dirname, "public")));
-
 app.use(express.json());
 app.use(cors());
+app.use(express.static("public"));
 
 // ============================================================
-// ☁️ CLOUDINARY
+// 🔐 CONFIGURAÇÕES
+// ============================================================
+const JWT_SECRET = process.env.JWT_SECRET || "segredo";
+const ENCRYPT_KEY = process.env.ENCRYPT_KEY || crypto.randomBytes(32).toString("hex");
+
+// ============================================================
+// ☁️ CLOUDINARY CONFIG
 // ============================================================
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -37,76 +29,63 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "ponto-digital",
-    allowed_formats: ["jpg", "jpeg", "png"],
-  },
-});
+// ============================================================
+// 🗂️ MULTER (upload temporário de imagem)
+// ============================================================
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // ============================================================
-// 🔐 CRIPTOGRAFIA AES-256
+// 🔒 CRIPTOGRAFIA AUXILIAR
 // ============================================================
-const ENCRYPT_KEY = process.env.ENCRYPT_KEY;
-
 function encrypt(text) {
-  if (!text) return "";
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(
-    "aes-256-cbc",
-    Buffer.from(ENCRYPT_KEY, "hex"),
-    iv
-  );
-  const encrypted = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
-  return iv.toString("hex") + ":" + encrypted.toString("hex");
+  const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(ENCRYPT_KEY, "hex"), iv);
+  let encrypted = cipher.update(text, "utf8", "base64");
+  encrypted += cipher.final("base64");
+  return iv.toString("base64") + ":" + encrypted;
 }
 
 function decrypt(text) {
   try {
-    if (!text || !text.includes(":")) return text;
-    const [ivHex, contentHex] = text.split(":");
-    const iv = Buffer.from(ivHex, "hex");
+    const [iv, encryptedData] = text.split(":");
     const decipher = crypto.createDecipheriv(
       "aes-256-cbc",
       Buffer.from(ENCRYPT_KEY, "hex"),
-      iv
+      Buffer.from(iv, "base64")
     );
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(contentHex, "hex")),
-      decipher.final(),
-    ]);
-    return decrypted.toString("utf8");
+    let decrypted = decipher.update(encryptedData, "base64", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
   } catch {
     return text;
   }
 }
 
 // ============================================================
-// 🧩 MONGODB
+// 📦 MONGODB
 // ============================================================
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => console.log("✅ Conectado ao MongoDB Atlas"))
   .catch((err) => console.error("❌ Erro MongoDB:", err));
 
+// ============================================================
+// 👥 MODELOS
+// ============================================================
 const userSchema = new mongoose.Schema({
+  userId: { type: String, unique: true },
   nome: String,
   email: String,
   senhaHash: String,
+  categoria: String, // ADMIN, RH, VENDEDOR
+  turno: String, // MANHA, TARDE
   cpfCripto: String,
   telefoneCripto: String,
-  categoria: String,
-  turno: String,
   dataAdmissao: Date,
-  jaTirouFerias: Boolean,
-  formaUltimasFerias: String,
-  dataUltimasFeriasInicio: Date,
-  dataUltimasFeriasFim: Date,
 });
 
-const pontoSchema = new mongoose.Schema({
+const registroSchema = new mongoose.Schema({
   userId: String,
   tipo: String,
   dataHora: Date,
@@ -115,254 +94,194 @@ const pontoSchema = new mongoose.Schema({
 
 const feriasSchema = new mongoose.Schema({
   userId: String,
-  tipo: String,
-  dataInicio: Date,
-  dataFim: Date,
-  dias: Number,
-  status: { type: String, default: "pendente" },
+  inicio: Date,
+  fim: Date,
+  tipo: String, // 30dias ou 15/15
+  status: String, // solicitada, aprovada, negada
 });
 
 const User = mongoose.model("User", userSchema);
-const Ponto = mongoose.model("Ponto", pontoSchema);
+const Registro = mongoose.model("Registro", registroSchema);
 const Ferias = mongoose.model("Ferias", feriasSchema);
 
 // ============================================================
-// 🌱 SEED + CORREÇÃO DE ÍNDICE DUPLICADO + ADMIN
+// 🧑‍💼 ADMIN DEFAULT
 // ============================================================
-async function seed() {
-  try {
-    // 🔹 Remove índice duplicado 'userId_1' se existir
-    const indexes = await mongoose.connection.db.collection("users").indexes();
-    const dupIndex = indexes.find((idx) => idx.name === "userId_1");
-    if (dupIndex) {
-      await mongoose.connection.db.collection("users").dropIndex("userId_1");
-      console.log("🧩 Índice duplicado 'userId_1' removido!");
-    }
-
-    // 🔹 Evita duplicar seeds
-    if (await User.countDocuments()) return;
-
-    console.log("🌱 Criando usuários padrão...");
-
-    const base = [
-      {
-        nome: "Ana RH",
-        email: "ana.rh@empresa.com",
-        cpf: "12345678900",
-        telefone: "11999999999",
-        categoria: "RH",
-        dataAdmissao: new Date("2023-01-02"),
-      },
-      {
-        nome: "Bruno Vendedor",
-        email: "bruno@empresa.com",
-        cpf: "98765432100",
-        telefone: "11988888888",
-        categoria: "VENDEDOR",
-        turno: "MANHA",
-        dataAdmissao: new Date("2023-02-10"),
-      },
-    ];
-
-    for (const u of base) {
-      const senha = u.cpf.substring(0, 5);
-      await new User({
-        ...u,
-        senhaHash: bcrypt.hashSync(senha, 10),
-        cpfCripto: encrypt(u.cpf),
-        telefoneCripto: encrypt(u.telefone),
-      }).save();
-      console.log(`Usuário: ${u.email} | senha: ${senha}`);
-    }
-  } catch (err) {
-    console.error("❌ Erro no seed:", err);
-  }
-}
-
-// 🔹 Garante que o Admin Master exista SEMPRE
-async function verificarAdmin() {
+async function seedAdmin() {
   const adminEmail = "admin@empresa.com";
   const admin = await User.findOne({ email: adminEmail });
   if (!admin) {
     const senha = "admin123";
-    await new User({
+    const novo = new User({
+      userId: crypto.randomUUID(),
       nome: "Administrador Master",
       email: adminEmail,
       senhaHash: bcrypt.hashSync(senha, 10),
       categoria: "ADMIN",
-      telefoneCripto: encrypt("11900000000"),
       cpfCripto: encrypt("00000000000"),
+      telefoneCripto: encrypt("11900000000"),
       dataAdmissao: new Date(),
-    }).save();
-    console.log(`👑 Admin recriado: ${adminEmail} | senha: ${senha}`);
-  } else {
-    console.log("👑 Admin existente confirmado.");
+    });
+    await novo.save();
+    console.log(`👑 Admin criado: ${adminEmail} | senha: ${senha}`);
   }
 }
-
-mongoose.connection.once("open", async () => {
-  await seed();
-  await verificarAdmin();
-});
+seedAdmin();
 
 // ============================================================
-// 🔑 LOGIN
+// 🔑 AUTENTICAÇÃO JWT
 // ============================================================
-function dentroDoHorarioPermitido(user) {
-  const agora = new Date();
-  const h = agora.getHours() + agora.getMinutes() / 60;
-  const hoje = agora.getDay();
-  const tolerancia = 0.25;
-  const feriados = ["12-24", "12-31"];
-  const dia = `${String(agora.getMonth() + 1).padStart(2, "0")}-${String(
-    agora.getDate()
-  ).padStart(2, "0")}`;
-  const especial = feriados.includes(dia);
-
-  if (user.categoria === "RH" || user.categoria === "ADMIN")
-    return hoje >= 1 && hoje <= 5 && h >= 9 - tolerancia && h <= 18;
-
-  if (user.categoria === "VENDEDOR") {
-    if (especial) return h >= 9 - tolerancia && h <= 18;
-    if (hoje === 0) return h >= 14 - tolerancia && h <= 20;
-    if (user.turno === "MANHA") return h >= 10 - tolerancia && h <= 16;
-    if (user.turno === "TARDE") return h >= 16 - tolerancia && h <= 22;
-  }
-  return false;
+function gerarToken(userId) {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "8h" });
 }
 
-app.post("/login", async (req, res) => {
-  const { email, senha } = req.body;
-  const u = await User.findOne({ email });
-  if (!u) return res.status(404).json({ error: "Usuário não encontrado" });
-  if (!bcrypt.compareSync(senha, u.senhaHash))
-    return res.status(401).json({ error: "Senha incorreta" });
-  if (!dentroDoHorarioPermitido(u))
-    return res.status(403).json({ error: "Fora do horário permitido" });
-
-  const token = jwt.sign({ id: u._id, categoria: u.categoria }, process.env.JWT_SECRET, {
-    expiresIn: "8h",
-  });
-  res.json({ token, usuario: u });
-});
-
-function auth(req, res, next) {
-  const h = req.headers.authorization;
-  if (!h) return res.status(401).json({ error: "Token ausente" });
+function autenticarJWT(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Token ausente." });
   try {
-    const { id, categoria } = jwt.verify(h.split(" ")[1], process.env.JWT_SECRET);
-    req.userId = id;
-    req.categoria = categoria;
+    const dec = jwt.verify(token, JWT_SECRET);
+    req.userId = dec.userId;
     next();
   } catch {
-    res.status(401).json({ error: "Token inválido" });
+    res.status(403).json({ error: "Token inválido." });
   }
 }
 
 // ============================================================
-// 📸 REGISTRAR PONTO
+// 🔐 LOGIN
 // ============================================================
-app.post("/ponto/registrar", auth, upload.single("foto"), async (req, res) => {
-  await new Ponto({
-    userId: req.userId,
-    tipo: req.body.tipo,
-    dataHora: new Date(),
-    fotoUrl: req.file?.path || "",
-  }).save();
-  res.json({ ok: true });
+app.post("/login", async (req, res) => {
+  const { email, senha } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) return res.status(400).json({ error: "Usuário não encontrado." });
+  const ok = bcrypt.compareSync(senha, user.senhaHash);
+  if (!ok) return res.status(400).json({ error: "Senha incorreta." });
+
+  const token = gerarToken(user._id);
+  res.json({
+    token,
+    usuario: {
+      nome: user.nome,
+      email: user.email,
+      categoria: user.categoria,
+      turno: user.turno,
+    },
+  });
 });
 
 // ============================================================
-// 🌴 FÉRIAS
+// 👥 ADMIN: LISTAR FUNCIONÁRIOS
 // ============================================================
-app.get("/ferias/info", auth, async (req, res) => {
-  const u = await User.findById(req.userId);
-  const adm = new Date(u.dataAdmissao);
-  const hoje = new Date();
-  const dias = Math.floor((hoje - adm) / 86400000);
-  const status =
-    dias > 365
-      ? `⚠️ Férias vencidas há ${dias - 365} dias`
-      : dias > 335
-      ? `⚠️ Férias vencem em ${365 - dias} dias`
-      : "OK";
-  res.json({ statusFerias: status, dataAdmissao: u.dataAdmissao });
-});
-
-app.post("/ferias/solicitar", auth, async (req, res) => {
-  const tipo = req.body.tipo;
-  const hoje = new Date();
-  const dias = tipo === "15em15" ? 15 : 30;
-  await new Ferias({
-    userId: req.userId,
-    tipo,
-    dataInicio: hoje,
-    dataFim: new Date(hoje.getTime() + dias * 86400000),
-    dias,
-  }).save();
-  res.json({ ok: true });
+app.get("/admin/funcionarios", autenticarJWT, async (req, res) => {
+  const users = await User.find();
+  res.json(users);
 });
 
 // ============================================================
-// 🧑‍💼 ADMIN/RH CRUD
+// ➕ ADMIN: CRIAR FUNCIONÁRIO
 // ============================================================
-app.get("/admin/funcionarios", auth, async (_, res) => {
-  res.json(await User.find());
-});
-
-app.post("/admin/criar-funcionario", auth, async (req, res) => {
-  const { nome, email, cpf, telefone, categoria, turno, dataAdmissao } = req.body;
-  const senha = cpf.substring(0, 5);
-  await new User({
-    nome,
-    email,
-    senhaHash: bcrypt.hashSync(senha, 10),
-    cpfCripto: encrypt(cpf),
-    telefoneCripto: encrypt(telefone),
-    categoria,
-    turno,
-    dataAdmissao: new Date(dataAdmissao),
-  }).save();
-  res.json({ ok: true, senhaGerada: senha });
-});
-
-app.put("/admin/funcionario/:id", auth, async (req, res) => {
-  const {
-    nome,
-    email,
-    telefone,
-    categoria,
-    turno,
-    dataFeriasInicio,
-    dataFeriasFim,
-    feriasTipo,
-  } = req.body;
-  const update = { nome, email, telefone, categoria, turno };
-  if (dataFeriasInicio && dataFeriasFim && feriasTipo) {
-    update.jaTirouFerias = true;
-    update.formaUltimasFerias = feriasTipo;
-    update.dataUltimasFeriasInicio = new Date(dataFeriasInicio);
-    update.dataUltimasFeriasFim = new Date(dataFeriasFim);
-    await Ferias.create({
-      userId: req.params.id,
-      tipo: feriasTipo,
-      dataInicio: new Date(dataFeriasInicio),
-      dataFim: new Date(dataFeriasFim),
-      dias: 30,
-      status: "aprovada",
+app.post("/admin/criar-funcionario", autenticarJWT, async (req, res) => {
+  try {
+    const { nome, email, cpf, telefone, categoria, turno, dataAdmissao } = req.body;
+    const senhaGerada = cpf.slice(0, 5);
+    const novo = new User({
+      userId: crypto.randomUUID(),
+      nome,
+      email,
+      senhaHash: bcrypt.hashSync(senhaGerada, 10),
+      categoria,
+      turno,
+      cpfCripto: encrypt(cpf),
+      telefoneCripto: encrypt(telefone),
+      dataAdmissao: new Date(dataAdmissao),
     });
+    await novo.save();
+    res.json({ sucesso: true, senhaGerada });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao cadastrar funcionário." });
   }
-  await User.findByIdAndUpdate(req.params.id, update);
-  res.json({ ok: true });
-});
-
-app.delete("/admin/funcionario/:id", auth, async (req, res) => {
-  await User.findByIdAndDelete(req.params.id);
-  res.json({ ok: true });
 });
 
 // ============================================================
-// 🚀 START SERVER
+// 📸 REGISTRAR PONTO (Respeitando horários)
+// ============================================================
+app.post("/ponto/registrar", autenticarJWT, upload.single("foto"), async (req, res) => {
+  try {
+    const { tipo } = req.body;
+    const usuario = await User.findById(req.userId);
+    if (!usuario) return res.status(404).json({ error: "Usuário não encontrado." });
+
+    const agora = new Date();
+    const horaAtual = agora.getHours() + agora.getMinutes() / 60;
+
+    let inicio, fim;
+    if (usuario.categoria === "RH") {
+      inicio = 9;
+      fim = 18;
+    } else if (usuario.categoria === "VENDEDOR") {
+      inicio = usuario.turno === "MANHA" ? 10 : 16;
+      fim = usuario.turno === "MANHA" ? 16 : 22;
+    }
+
+    const inicioPermitido = inicio - 0.25;
+    const fimPermitido = fim + 0.25;
+
+    if (horaAtual < inicioPermitido || horaAtual > fimPermitido) {
+      return res.status(403).json({
+        error: `Fora do horário permitido para registrar ponto (${inicio}:00–${fim}:00).`,
+      });
+    }
+
+    // Upload da foto (se houver)
+    let urlFoto = null;
+    if (req.file) {
+      const result = await cloudinary.uploader.upload_stream(
+        { folder: "ponto_digital" },
+        (error, result) => {
+          if (error) console.error(error);
+          else urlFoto = result.secure_url;
+        }
+      );
+    }
+
+    await Registro.create({
+      userId: usuario._id,
+      tipo,
+      dataHora: agora,
+      fotoUrl: urlFoto,
+    });
+
+    res.json({ sucesso: true, msg: "Ponto registrado com sucesso!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao registrar ponto." });
+  }
+});
+
+// ============================================================
+// 🌴 STATUS DE FÉRIAS
+// ============================================================
+app.get("/ferias/info", autenticarJWT, async (req, res) => {
+  const user = await User.findById(req.userId);
+  if (!user || !user.dataAdmissao) return res.json({ statusFerias: null });
+
+  const adm = new Date(user.dataAdmissao);
+  const proximo = new Date(adm);
+  proximo.setFullYear(adm.getFullYear() + 1);
+
+  const hoje = new Date();
+  const diff = Math.floor((proximo - hoje) / (1000 * 60 * 60 * 24));
+
+  let statusFerias = "✅ Férias em dia.";
+  if (diff <= 0) statusFerias = `⚠️ Férias vencidas há ${Math.abs(diff)} dias.`;
+  else if (diff <= 30) statusFerias = `⚠️ Férias vencem em ${diff} dias.`;
+
+  res.json({ statusFerias });
+});
+
+// ============================================================
+// 🚀 SERVER START
 // ============================================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
