@@ -12,6 +12,7 @@
   text-align: center;
   z-index: 1000;
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  animation: fadeSlideDown 0.8s ease-out;
 }
 
 .header-content {
@@ -19,24 +20,46 @@
   justify-content: center;
   align-items: center;
   gap: 10px;
+  opacity: 0;
+  animation: fadeInHeader 1.2s ease-out forwards;
+  animation-delay: 0.3s;
 }
 
 .logo {
   height: 40px;
   object-fit: contain;
+  transform: scale(0.95);
+  transition: transform 0.4s ease;
+}
+
+.logo:hover {
+  transform: scale(1.05);
 }
 
 /* ========================================================= */
-/* 🔐 LOGIN E SEÇÕES */
+/* 🔐 SEÇÕES E TRANSIÇÕES */
 /* ========================================================= */
 .section {
   margin-top: 120px;
   display: flex;
   justify-content: center;
   align-items: center;
-  transition: opacity 0.3s ease;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
+.section.oculto {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(20px);
+}
+
+/* ========================================================= */
+/* 💳 CARDS */
+/* ========================================================= */
 .card {
   background: #fff;
   border-radius: 16px;
@@ -44,13 +67,22 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   width: 90%;
   max-width: 400px;
+  animation: fadeIn 0.6s ease;
 }
 
-.card h2 {
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.card h2, .card h3 {
   text-align: center;
   color: #333;
 }
 
+/* ========================================================= */
+/* 🧾 CAMPOS E BOTÕES */
+/* ========================================================= */
 input, select, button {
   width: 100%;
   padding: 10px;
@@ -66,16 +98,27 @@ button {
   cursor: pointer;
   border: none;
   font-weight: 600;
+  transition: 0.3s ease;
 }
 
 button:hover {
   background: #491fc5;
+  transform: scale(1.02);
 }
 
 .msg-erro {
   color: red;
   text-align: center;
   margin-top: 8px;
+}
+
+.msg-alert {
+  background: #ffe2e2;
+  color: #d63c3c;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 10px 0;
+  text-align: center;
 }
 
 /* ========================================================= */
@@ -95,6 +138,7 @@ button:hover {
   background: #eee;
   cursor: pointer;
   font-weight: 600;
+  transition: background 0.3s ease;
 }
 
 .tab-btn.active {
@@ -116,11 +160,17 @@ button:hover {
 
 .btn-add {
   background: #f5a623;
+  color: white;
+  font-weight: bold;
   margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  transition: transform 0.2s ease;
 }
 
 .btn-add:hover {
   background: #e5940c;
+  transform: scale(1.03);
 }
 
 .btn-logout {
@@ -134,6 +184,7 @@ button:hover {
   border: none;
   cursor: pointer;
   font-weight: 600;
+  transition: background 0.3s ease;
 }
 
 .btn-logout:hover {
@@ -154,6 +205,7 @@ button:hover {
   justify-content: center;
   align-items: center;
   z-index: 2000;
+  animation: fadeIn 0.4s ease;
 }
 
 .modal:not(.oculto) {
@@ -205,12 +257,98 @@ button:hover {
 }
 
 /* ========================================================= */
-/* 🚫 OCULTAR SEÇÕES */
+/* ✨ ANIMAÇÃO GLOBAL E FUNDO */
 /* ========================================================= */
-.oculto {
-  display: none !important;
-  opacity: 0;
-  pointer-events: none;
-  height: 0;
-  overflow: hidden;
+body {
+  background: #f6f7fb;
+  font-family: "Segoe UI", sans-serif;
+  transition: background 0.4s ease, color 0.4s ease;
+  color: #222;
+}
+
+/* ========================================================= */
+/* 🌙 MODO ESCURO AUTOMÁTICO */
+/* ========================================================= */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #121212;
+    color: #eee;
+  }
+
+  #header {
+    background: linear-gradient(90deg, #4228a1, #d67b0b);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .card {
+    background: #1e1e1e;
+    color: #f1f1f1;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  }
+
+  input, select, button {
+    background: #222;
+    color: #eee;
+    border: 1px solid #555;
+  }
+
+  input::placeholder {
+    color: #aaa;
+  }
+
+  button {
+    background: #6b5dfc;
+  }
+
+  button:hover {
+    background: #5847d3;
+  }
+
+  .tab-btn {
+    background: #2b2b2b;
+    color: #ccc;
+  }
+
+  .tab-btn.active {
+    background: #6b5dfc;
+    color: #fff;
+  }
+
+  .btn-add {
+    background: #d67b0b;
+  }
+
+  .btn-add:hover {
+    background: #b86809;
+  }
+
+  .btn-logout {
+    background: #bb3b3b;
+  }
+
+  .btn-logout:hover {
+    background: #992f2f;
+  }
+
+  .modal-content {
+    background: #1c1c1c;
+    color: #fff;
+  }
+
+  #tabela-funcionarios th, #tabela-funcionarios td {
+    border-color: #333;
+  }
+}
+
+/* ========================================================= */
+/* 🎞️ CABEÇALHO ANIMAÇÕES */
+/* ========================================================= */
+@keyframes fadeSlideDown {
+  0% { opacity: 0; transform: translateY(-30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInHeader {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
 }
